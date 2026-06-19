@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Horarios Restaurante</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#0f1117;font-family:-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif;}
+    #root{max-width:430px;margin:0 auto;min-height:100vh;}
+    input,button{font-family:inherit;}
+    ::-webkit-scrollbar{height:4px;width:4px;}
+    ::-webkit-scrollbar-track{background:#0f1117;}
+    ::-webkit-scrollbar-thumb{background:#2a3142;border-radius:2px;}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script type="text/babel">
+const { useState } = React;
+
+
+// ─── Constants ───────────────────────────────────────────────────
+const COLORS = ["#F59E0B","#EF4444","#8B5CF6","#10B981","#3B82F6","#F97316","#6B7280","#EC4899","#14B8A6","#6366F1","#84CC16","#06B6D4"];
+
+const EMOJI_GROUPS = [
+  { label:"Cocina",     emojis:["🍳","🧑‍🍳","🍕","🍔","🥗","🥘","🍲","🥩","🍱"] },
+  { label:"Panadería",  emojis:["🍞","🥖","🥐","🫓","🥨","🧇","🥞"] },
+  { label:"Pastelería", emojis:["🍰","🧁","🎂","🍩","🍪","🍫","🍮","🍭"] },
+  { label:"Bar",        emojis:["🍹","🍻","🥂","🍷","🧃","☕","🧋"] },
+  { label:"Sala",       emojis:["🪑","🛎️","🍽️","🥄","🍴"] },
+  { label:"General",    emojis:["🧹","📦","🔧","🎯","⭐","🏠","❄️","🔥"] },
+];
+
+const DEFAULT_ROLES = [
+  { code:"S",  label:"Sauté",       color:"#F59E0B", text:"#1a1a1a" },
+  { code:"G",  label:"Grill",       color:"#EF4444", text:"#fff" },
+  { code:"W",  label:"Wheel",       color:"#8B5CF6", text:"#fff" },
+  { code:"P",  label:"Pantry",      color:"#10B981", text:"#fff" },
+  { code:"PR", label:"Prep Cook",   color:"#3B82F6", text:"#fff" },
+  { code:"F",  label:"Fry Cook",    color:"#F97316", text:"#fff" },
+  { code:"D",  label:"Dishwasher",  color:"#6B7280", text:"#fff" },
+  { code:"SC", label:"Sous Chef",   color:"#EC4899", text:"#fff" },
+  { code:"PC", label:"Pastry Chef", color:"#14B8A6", text:"#fff" },
+  { code:"LC", label:"Line Cook",   color:"#6366F1", text:"#fff" },
+];
+
+const INITIAL_DEPTS = [
+  { id:"kitchen", label:"Cocina", icon:"🍳", color:"#F59E0B", roles:[...DEFAULT_ROLES] },
+  { id:"bar",     label:"Bar",    icon:"🍹", color:"#3B82F6", roles:[...DEFAULT_ROLES] },
+  { id:"sala",    label:"Sala",   icon:"🪑", color:"#10B981", roles:[...DEFAULT_ROLES] },
+];
+
+const SHIFT_META = {
+  morning:   { label:"Mañana",   color:"#F59E0B" },
+  lunch:     { label:"Almuerzo", color:"#3B82F6" },
+  afternoon: { label:"Tarde",    color:"#10B981" },
+  dinner:    { label:"Cena",     color:"#8B5CF6" },
+  closing:   { label:"Cierre",   color:"#6B7280" },
+};
+
+const SHIFTS = [
+  { id:"morning",   label:"Mañana",   time:"8:00–12:00",  hours:4 },
+  { id:"lunch",     label:"Almuerzo", time:"12:00–16:00", hours:4 },
+  { id:"afternoon", label:"Tarde",    time:"16:00–19:00", hours:3 },
+  { id:"dinner",    label:"Cena",     time:"19:00–23:00", hours:4 },
+  { id:"closing",   label:"Cierre",   time:"23:00–00:00", hours:1 },
+];
+
+const DEFAULT_SLOTS = [
+  {label:"8:00",shiftId:"morning"},{label:"9:00",shiftId:"morning"},
+  {label:"10:00",shiftId:"morning"},{label:"11:00",shiftId:"morning"},
+  {label:"12:00",shiftId:"lunch"},{label:"13:00",shiftId:"lunch"},
+  {label:"14:00",shiftId:"lunch"},{label:"15:00",shiftId:"lunch"},
+  {label:"16:00",shiftId:"afternoon"},{label:"17:00",shiftId:"afternoon"},{label:"18:00",shiftId:"afternoon"},
+  {label:"19:00",shiftId:"dinner"},{label:"20:00",shiftId:"dinner"},
+  {label:"21:00",shiftId:"dinner"},{label:"22:00",shiftId:"dinner"},
+  {label:"23:00",shiftId:"closing"},
+];
+
+const SLOTS_30 = [
+  {label:"8:00",shiftId:"morning"},{label:"8:30",shiftId:"morning"},
+  {label:"9:00",shiftId:"morning"},{label:"9:30",shiftId:"morning"},
+  {label:"10:00",shiftId:"morning"},{label:"10:30",shiftId:"morning"},
+  {label:"11:00",shiftId:"morning"},{label:"11:30",shiftId:"morning"},
+  {label:"12:00",shiftId:"lunch"},{label:"12:30",shiftId:"lunch"},
+  {label:"13:00",shiftId:"lunch"},{label:"13:30",shiftId:"lunch"},
+  {label:"14:00",shiftId:"lunch"},{label:"14:30",shiftId:"lunch"},
+  {label:"15:00",shiftId:"lunch"},{label:"15:30",shiftId:"lunch"},
+  {label:"16:00",shiftId:"afternoon"},{label:"16:30",shiftId:"afternoon"},
+  {label:"17:00",shiftId:"afternoon"},{label:"17:30",shiftId:"afternoon"},
+  {label:"18:00",shiftId:"afternoon"},{label:"18:30",shiftId:"afternoon"},
+  {label:"19:00",shiftId:"dinner"},{label:"19:30",shiftId:"dinner"},
+  {label:"20:00",shiftId:"dinner"},{label:"20:30",shiftId:"dinner"},
+  {label:"21:00",shiftId:"dinner"},{label:"21:30",shiftId:"dinner"},
+  {label:"22:00",shiftId:"dinner"},{label:"22:30",shiftId:"dinner"},
+  {label:"23:00",shiftId:"closing"},{label:"23:30",shiftId:"closing"},
+];
+
+const DAYS_S = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const DAYS_F = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const MONTHS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const NAME_W = 72, HOUR_W = 38;
+
+const INITIAL_EMPLOYEES = [
+  { id:1, name:"Carlos M.", dept:"kitchen", schedules:{ "w0":{ 0:{"8:00":"PR","9:00":"PR","10:00":"PR","11:00":"PR","12:00":"PR","13:00":"PR","14:00":"PR","15:00":"PR"}, 1:{"8:00":"PR","9:00":"PR"}, 3:{"8:00":"PR","9:00":"PR"} } } },
+  { id:2, name:"Ana G.",    dept:"kitchen", schedules:{ "w0":{ 0:{"12:00":"SC","13:00":"SC","14:00":"SC","15:00":"SC"}, 2:{"12:00":"SC","13:00":"SC"}, 5:{"12:00":"SC","19:00":"SC","20:00":"SC"} } } },
+  { id:3, name:"Luis P.",   dept:"kitchen", schedules:{ "w0":{ 0:{"8:00":"PC","9:00":"PC","10:00":"PC","11:00":"PC","12:00":"PC","13:00":"PC"}, 1:{"8:00":"PC","9:00":"PC"} } } },
+  { id:4, name:"María R.",  dept:"kitchen", schedules:{ "w0":{ 0:{"12:00":"LC","13:00":"LC","19:00":"LC","20:00":"LC"}, 1:{"12:00":"LC","13:00":"LC"} } } },
+  { id:5, name:"Jorge T.",  dept:"kitchen", schedules:{ "w0":{ 1:{"12:00":"S","13:00":"S","19:00":"S","20:00":"S"}, 2:{"12:00":"S","13:00":"S"} } } },
+  { id:6, name:"Sofia K.",  dept:"kitchen", schedules:{ "w0":{ 0:{"8:00":"D","9:00":"D","10:00":"D","11:00":"D","12:00":"D","13:00":"D"}, 2:{"8:00":"D","9:00":"D"} } } },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────
+function tc(c) { return (c==="#F59E0B"||c==="#84CC16") ? "#1a1a1a":"#fff"; }
+function wkKey(n) { return `w${n}`; }
+function countH(weekSched) {
+  if (!weekSched) return 0;
+  let h=0;
+  Object.values(weekSched).forEach(day=>{
+    if (!day) return;
+    Object.values(day).forEach(v=>{ if(v) h++; });
+  });
+  return h;
+}
+function getMonday(offset) {
+  const t=new Date(), d=t.getDay(), diff=d===0?-6:1-d;
+  const m=new Date(t); m.setDate(t.getDate()+diff+offset*7); return m;
+}
+function fmtDate(d) { return `${d.getDate()} ${MONTHS[d.getMonth()]}`; }
+function dayDate(monday, i) { const d=new Date(monday); d.setDate(monday.getDate()+i); return fmtDate(d); }
+function shiftSpans(slots) {
+  return Object.keys(SHIFT_META).map(id=>({
+    id, label:SHIFT_META[id].label,
+    cols:slots.filter(h=>h.shiftId===id).length
+  })).filter(g=>g.cols>0);
+}
+
+// ─── Small shared components ──────────────────────────────────────
+function ColorPicker({value,onChange}) {
+  return <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+    {COLORS.map(c=><div key={c} onClick={()=>onChange(c)} style={{width:34,height:34,borderRadius:9,background:c,cursor:"pointer",border:value===c?"3px solid #fff":"3px solid transparent",boxSizing:"border-box"}}/>)}
+  </div>;
+}
+function EmojiPicker({value,onChange,accent}) {
+  return <div>{EMOJI_GROUPS.map(g=><div key={g.label} style={{marginBottom:12}}>
+    <div style={{fontSize:10,color:"#475569",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>{g.label}</div>
+    <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+      {g.emojis.map(em=><div key={em} onClick={()=>onChange(em)} style={{width:38,height:38,borderRadius:9,background:value===em?accent+"33":"#0f1117",border:value===em?`2px solid ${accent}`:"2px solid #2a3142",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,cursor:"pointer",boxSizing:"border-box"}}>{em}</div>)}
+    </div>
+  </div>)}</div>;
+}
+
+// ─── Cell rendering helper ────────────────────────────────────────
+function CellContent({code,r,empName,employees,size="normal"}) {
+  const fs = size==="small" ? {icon:8,code:7,name:6} : {icon:10,code:8,name:6.5};
+  if (code==="BAJA") return <><span style={{fontSize:fs.icon,lineHeight:1}}>🤒</span><span style={{fontSize:fs.code-1,fontWeight:700,color:"#ef4444",lineHeight:1}}>BAJA</span></>;
+  if (code==="VAC")  return <><span style={{fontSize:fs.icon,lineHeight:1}}>🏖️</span><span style={{fontSize:fs.code-1,fontWeight:700,color:"#06B6D4",lineHeight:1}}>VAC</span></>;
+  if (code?.startsWith("TIT:")) {
+    const t=employees?.find(e=>e.id===parseInt(code.split(":")[1]));
+    return <><span style={{fontSize:fs.icon-1,lineHeight:1}}>👤</span><span style={{fontSize:fs.code-1,fontWeight:700,color:"#8B5CF6",lineHeight:1}}>{t?.name?.split(" ")[0]||"TIT"}</span></>;
+  }
+  if (code && r) return <><span style={{fontSize:fs.code,fontWeight:900,color:r.color,lineHeight:1}}>{code}</span><span style={{fontSize:fs.name,fontWeight:600,color:r.color+"cc",lineHeight:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:HOUR_W-4,textAlign:"center"}}>{empName}</span></>;
+  return <span style={{width:3,height:3,borderRadius:"50%",background:"#2a3142",display:"block"}}/>;
+}
+function cellBg(code,r,sc) {
+  if (code==="BAJA") return {background:"#ef444422",border:"1px solid #ef444466"};
+  if (code==="VAC")  return {background:"#06B6D422",border:"1px solid #06B6D466"};
+  if (code?.startsWith("TIT:")) return {background:"#8B5CF622",border:"1px solid #8B5CF666"};
+  if (r) return {background:r.color+"33",border:`1px solid ${r.color}66`};
+  return {background:sc+"08",border:`1px solid ${sc}18`};
+}
+
+// ─── CellPicker ───────────────────────────────────────────────────
+function CellPicker({cellPicker,employees,dept,slots,onAssign,onClose}) {
+  const [numSlots, setNumSlots] = useState(1);
+  const emp = employees.find(e=>e.id===cellPicker.empId);
+  const startIdx = slots.findIndex(h=>h.label===cellPicker.slotKey);
+  const maxSlots = slots.length - startIdx;
+  const keys = slots.slice(startIdx, startIdx+numSlots).map(h=>h.label);
+  const curCode = emp?.schedules[cellPicker.wk]?.[cellPicker.dayIdx]?.[cellPicker.slotKey]||null;
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#00000088",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"20px 20px 0 0",padding:"18px 16px 40px",width:"100%",maxWidth:430,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+        {/* Name box */}
+        <div style={{background:"#0f1117",border:"1px solid #2a3142",borderRadius:14,padding:"13px 15px",marginBottom:14,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:46,height:46,borderRadius:12,background:dept.color+"22",border:`2px solid ${dept.color}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{dept.icon}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:900,fontSize:18,color:"#f1f5f9"}}>{emp?.name}</div>
+            <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{DAYS_F[cellPicker.dayIdx]} · {cellPicker.slotKey}{numSlots>1?` → ${slots[startIdx+numSlots-1]?.label}`:""}</div>
+          </div>
+          {/* Slot counter */}
+          <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+            <button onClick={()=>setNumSlots(s=>Math.max(1,s-1))} style={{width:28,height:28,borderRadius:7,background:"#ef444422",border:"1px solid #ef444455",color:"#ef4444",fontSize:15,fontWeight:900,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+            <div style={{minWidth:24,textAlign:"center"}}>
+              <div style={{fontSize:15,fontWeight:800,color:dept.color}}>{numSlots}</div>
+              <div style={{fontSize:7,color:"#475569"}}>slot{numSlots>1?"s":""}</div>
+            </div>
+            <button onClick={()=>setNumSlots(s=>Math.min(maxSlots,s+1))} style={{width:28,height:28,borderRadius:7,background:dept.color+"22",border:`1px solid ${dept.color}55`,color:dept.color,fontSize:15,fontWeight:900,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+          </div>
+        </div>
+        {/* Actions */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+          <button onClick={()=>onAssign("BAJA",keys)} style={{background:curCode==="BAJA"?"#ef444433":"#ef444411",border:`2px solid ${curCode==="BAJA"?"#ef4444":"#ef444433"}`,borderRadius:14,padding:"16px 6px",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontSize:22,marginBottom:5}}>🤒</div>
+            <div style={{fontSize:12,fontWeight:800,color:"#ef4444"}}>Baja</div>
+            <div style={{fontSize:9,color:"#ef444488",marginTop:2}}>Médica</div>
+          </button>
+          <button onClick={()=>onAssign("VAC",keys)} style={{background:curCode==="VAC"?"#06B6D433":"#06B6D411",border:`2px solid ${curCode==="VAC"?"#06B6D4":"#06B6D433"}`,borderRadius:14,padding:"16px 6px",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontSize:22,marginBottom:5}}>🏖️</div>
+            <div style={{fontSize:12,fontWeight:800,color:"#06B6D4"}}>Vacac.</div>
+            <div style={{fontSize:9,color:"#06B6D488",marginTop:2}}>Libres</div>
+          </button>
+          <button onClick={()=>onAssign(`TIT:${emp?.id}`,keys)} style={{background:curCode===`TIT:${emp?.id}`?"#8B5CF633":"#8B5CF611",border:`2px solid ${curCode===`TIT:${emp?.id}`?"#8B5CF6":"#8B5CF633"}`,borderRadius:14,padding:"16px 6px",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontSize:22,marginBottom:5}}>👤</div>
+            <div style={{fontSize:12,fontWeight:800,color:"#8B5CF6"}}>Titular</div>
+            <div style={{fontSize:9,color:"#8B5CF688",marginTop:2}}>{emp?.name?.split(" ")[0]}</div>
+          </button>
+        </div>
+        <button onClick={()=>onAssign(null,keys)} style={{width:"100%",padding:"11px",background:"#ffffff08",border:"1px solid #2a3142",borderRadius:10,color:"#64748b",fontWeight:600,fontSize:13,cursor:"pointer"}}>✕ Quitar asignación</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Schedule Grid (reusable) ─────────────────────────────────────
+function ScheduleGrid({dept,employees,slots,weekOffset,selectedDay,onCellClick,rowKey="day"}) {
+  // rowKey="day" => rows are employees, we show one day
+  // rowKey="week" => rows are days for one employee
+  const wk = wkKey(weekOffset);
+  const monday = getMonday(weekOffset);
+  const spans = shiftSpans(slots);
+  const totalW = NAME_W + slots.length * HOUR_W + 36;
+  const deptEmps = employees.filter(e=>e.dept===dept.id);
+  const roleObj = c => dept.roles.find(r=>r.code===c);
+
+  const rows = rowKey==="day"
+    ? deptEmps.map(emp=>({ id:emp.id, label:emp.name, getData:(slotLabel)=>emp.schedules[wk]?.[selectedDay]?.[slotLabel]||null, emp }))
+    : DAYS_F.map((name,di)=>({ id:di, label:`${DAYS_S[di]} ${dayDate(monday,di)}`, getData:(slotLabel)=>{
+        const emp=employees.find(e=>e.id===rowKey);
+        return emp?.schedules[wk]?.[di]?.[slotLabel]||null;
+      }, dayIdx:di }));
+
+  return (
+    <div style={{overflowX:"auto",flex:1}}>
+      <div style={{width:totalW}}>
+        {/* Shift group header */}
+        <div style={{display:"flex",background:"#161b27",borderBottom:"1px solid #2a3142",position:"sticky",top:0,zIndex:6}}>
+          <div style={{width:NAME_W,flexShrink:0,borderRight:"1px solid #2a3142"}}/>
+          {spans.map(g=>{
+            const sc=SHIFT_META[g.id].color;
+            return <div key={g.id} style={{width:g.cols*HOUR_W,flexShrink:0,textAlign:"center",padding:"4px 0",fontSize:9,fontWeight:800,color:sc,textTransform:"uppercase",letterSpacing:0.8,background:sc+"18",borderRight:`1px solid ${sc}44`,borderTop:`2px solid ${sc}`}}>{g.label}</div>;
+          })}
+          <div style={{width:36,flexShrink:0,borderLeft:"1px solid #2a3142",textAlign:"center",padding:"4px 0",fontSize:9,fontWeight:700,color:"#64748b"}}>h</div>
+        </div>
+        {/* Hour headers */}
+        <div style={{display:"flex",background:"#1a1f2e",borderBottom:"2px solid #2a3142",position:"sticky",top:22,zIndex:5}}>
+          <div style={{width:NAME_W,flexShrink:0,padding:"4px 6px",fontSize:9,fontWeight:700,color:"#64748b",borderRight:"1px solid #2a3142",display:"flex",alignItems:"center"}}>{rowKey==="day"?"Nombre":"Día"}</div>
+          {slots.map((h,hi)=>{
+            const sc=SHIFT_META[h.shiftId].color;
+            const isFirst=hi===0||slots[hi-1].shiftId!==h.shiftId;
+            return <div key={hi} style={{width:HOUR_W,flexShrink:0,textAlign:"center",padding:"4px 0",fontSize:8,fontWeight:700,color:sc,background:sc+"0d",borderRight:`1px solid ${sc}33`,borderLeft:isFirst?`2px solid ${sc}66`:"none"}}>{h.label}</div>;
+          })}
+          <div style={{width:36,flexShrink:0,borderLeft:"1px solid #2a3142"}}/>
+        </div>
+        {/* Rows */}
+        {rows.map((row,ri)=>{
+          const rowH = slots.filter(h=>row.getData(h.label)).length;
+          const clickDayIdx = rowKey==="day" ? selectedDay : row.dayIdx;
+          const clickEmpId  = rowKey==="day" ? row.emp.id : rowKey;
+          return (
+            <div key={row.id} style={{display:"flex",borderBottom:"1px solid #2a3142",background:ri%2===0?"#1a1f2e":"#161b27",minHeight:42}}>
+              <div style={{width:NAME_W,flexShrink:0,padding:"0 7px",fontSize:10,fontWeight:rowKey==="day"?600:700,color:rowKey==="day"?"#e2e8f0":dept.color,borderRight:"1px solid #2a3142",display:"flex",alignItems:"center",wordBreak:"break-word",lineHeight:1.3,cursor:rowKey==="day"?"pointer":"default"}}
+                onClick={rowKey==="day"&&onCellClick?()=>onCellClick({type:"name",emp:row.emp}):undefined}>
+                {row.label}
+              </div>
+              {slots.map((h,hi)=>{
+                const code=row.getData(h.label);
+                const r=code?roleObj(code):null;
+                const sc=SHIFT_META[h.shiftId].color;
+                const styles=cellBg(code,r,sc);
+                return (
+                  <div key={hi}
+                    onClick={()=>onCellClick&&onCellClick({type:"cell",empId:clickEmpId,dayIdx:clickDayIdx,slotKey:h.label,shiftId:h.shiftId,wk})}
+                    style={{width:HOUR_W,flexShrink:0,minHeight:42,cursor:"pointer",margin:"2px 1px",borderRadius:4,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,overflow:"hidden",...styles}}>
+                    <CellContent code={code} r={r} empName={rowKey==="day"?row.emp?.name:employees.find(e=>e.id===rowKey)?.name} employees={employees}/>
+                  </div>
+                );
+              })}
+              <div style={{width:36,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:rowH>0?dept.color:"#2a3142",borderLeft:"1px solid #2a3142"}}>{rowH>0?rowH:""}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Screens ──────────────────────────────────────────────────────
+
+function RoleFormScreen({role,dept,employees,onBack,onSave}) {
+  const isNew=!role;
+  const [code,setCode]=useState(role?.code||"");
+  const [label,setLabel]=useState(role?.label||"");
+  const [color,setColor]=useState(role?.color||COLORS[4]);
+  const tCol=tc(color);
+  return (
+    <div style={{background:"#0f1117",minHeight:"100vh",color:"#f1f5f9",maxWidth:430,margin:"0 auto"}}>
+      <div style={{background:"#161b27",padding:"16px",display:"flex",alignItems:"center",gap:12,borderBottom:"1px solid #2a3142"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:"#F59E0B",fontSize:22,cursor:"pointer"}}>‹</button>
+        <div style={{fontWeight:700,fontSize:16}}>{isNew?"Nuevo rol":"Editar rol"}</div>
+      </div>
+      <div style={{padding:"20px 16px"}}>
+        <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+          <div style={{width:72,height:72,borderRadius:18,background:color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:900,color:tCol,boxShadow:`0 0 30px ${color}66`}}>{code||"?"}</div>
+        </div>
+        <div style={{background:"#1e2433",borderRadius:12,overflow:"hidden",marginBottom:12}}>
+          <div style={{padding:"12px 14px",borderBottom:"1px solid #2a3142"}}>
+            <div style={{fontSize:10,color:"#64748b",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Código</div>
+            <input value={code} onChange={e=>setCode(e.target.value.toUpperCase().slice(0,3))} placeholder="ej. LC" style={{background:"none",border:"none",color:"#f1f5f9",fontSize:18,fontWeight:700,outline:"none",width:"100%"}}/>
+          </div>
+          <div style={{padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"#64748b",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Nombre</div>
+            <input value={label} onChange={e=>setLabel(e.target.value)} placeholder="ej. Line Cook" style={{background:"none",border:"none",color:"#f1f5f9",fontSize:14,outline:"none",width:"100%"}}/>
+          </div>
+        </div>
+        <div style={{background:"#1e2433",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+          <div style={{fontSize:10,color:"#64748b",marginBottom:10,textTransform:"uppercase",letterSpacing:1}}>Color</div>
+          <ColorPicker value={color} onChange={setColor}/>
+        </div>
+        <button onClick={()=>{if(code&&label)onSave({code,label,color,text:tCol});}} style={{width:"100%",padding:"13px",background:code&&label?"#F59E0B":"#2a3142",border:"none",borderRadius:10,color:code&&label?"#1a1a1a":"#475569",fontWeight:700,fontSize:14,cursor:code&&label?"pointer":"default"}}>
+          {isNew?"Crear rol":"Guardar cambios"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DeptFormScreen({dept,onBack,onSave,isNew}) {
+  const [label,setLabel]=useState(dept?.label||"");
+  const [icon,setIcon]=useState(dept?.icon||"🍳");
+  const [color,setColor]=useState(dept?.color||COLORS[4]);
+  return (
+    <div style={{background:"#0f1117",minHeight:"100vh",color:"#f1f5f9",maxWidth:430,margin:"0 auto"}}>
+      <div style={{background:"#161b27",padding:"16px",display:"flex",alignItems:"center",gap:12,borderBottom:"1px solid #2a3142"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:"#F59E0B",fontSize:22,cursor:"pointer"}}>‹</button>
+        <div style={{fontWeight:700,fontSize:16}}>{isNew?"Nuevo departamento":"Editar departamento"}</div>
+      </div>
+      <div style={{padding:"20px 16px"}}>
+        <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+          <div style={{width:72,height:72,borderRadius:18,background:color+"33",border:`2px solid ${color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:34,boxShadow:`0 0 30px ${color}44`}}>{icon}</div>
+        </div>
+        <div style={{background:"#1e2433",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+          <div style={{fontSize:10,color:"#64748b",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Nombre</div>
+          <input value={label} onChange={e=>setLabel(e.target.value)} placeholder="ej. Panadería" style={{background:"none",border:"none",color:"#f1f5f9",fontSize:18,fontWeight:700,outline:"none",width:"100%"}}/>
+        </div>
+        <div style={{background:"#1e2433",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+          <div style={{fontSize:10,color:"#64748b",marginBottom:10,textTransform:"uppercase",letterSpacing:1}}>Icono</div>
+          <EmojiPicker value={icon} onChange={setIcon} accent={color}/>
+        </div>
+        <div style={{background:"#1e2433",borderRadius:12,padding:"12px 14px",marginBottom:16}}>
+          <div style={{fontSize:10,color:"#64748b",marginBottom:10,textTransform:"uppercase",letterSpacing:1}}>Color</div>
+          <ColorPicker value={color} onChange={setColor}/>
+        </div>
+        {isNew&&<div style={{background:"#10B98111",border:"1px solid #10B98133",borderRadius:9,padding:"9px 12px",marginBottom:12,fontSize:12,color:"#10B981"}}>✓ Se crearán 10 roles por defecto</div>}
+        <button onClick={()=>{if(label)onSave({label,icon,color});}} style={{width:"100%",padding:"13px",background:label?"#F59E0B":"#2a3142",border:"none",borderRadius:10,color:label?"#1a1a1a":"#475569",fontWeight:700,fontSize:14,cursor:label?"pointer":"default"}}>
+          {isNew?"Crear departamento":"Guardar cambios"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DeptScreen({dept,employees,onBack,onEditRole,onAddRole,onDeleteRole,onOpenSchedule}) {
+  const [sheet,setSheet]=useState(null);
+  const deptEmps=employees.filter(e=>e.dept===dept.id);
+  return (
+    <div style={{background:"#0f1117",minHeight:"100vh",color:"#f1f5f9",maxWidth:430,margin:"0 auto"}}>
+      <div style={{background:"linear-gradient(135deg,#1e2433,#161b27)",padding:"14px 14px 12px",borderBottom:"1px solid #2a3142"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <button onClick={onBack} style={{background:"none",border:"none",color:dept.color,fontSize:22,cursor:"pointer"}}>‹</button>
+          <div><div style={{fontSize:10,color:"#64748b",letterSpacing:2,textTransform:"uppercase"}}>Departamento</div>
+          <div style={{fontWeight:700,fontSize:18}}>{dept.icon} {dept.label}</div></div>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          {[["Empleados",deptEmps.length],["Roles",dept.roles.length],["Turnos",SHIFTS.length]].map(([l,v])=>(
+            <div key={l} style={{flex:1,background:"#ffffff0a",borderRadius:9,padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:800,color:dept.color}}>{v}</div>
+              <div style={{fontSize:9,color:"#64748b"}}>{l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",background:"#0f1117",borderRadius:9,padding:3,gap:2}}>
+          <div style={{flex:1,padding:"7px 0",borderRadius:7,background:dept.color,textAlign:"center",fontSize:12,fontWeight:700,color:tc(dept.color)}}>🏷 Roles</div>
+          <div onClick={onOpenSchedule} style={{flex:1,padding:"7px 0",borderRadius:7,textAlign:"center",fontSize:12,fontWeight:600,color:"#64748b",cursor:"pointer"}}>📅 Horarios</div>
+        </div>
+      </div>
+      <div style={{padding:"12px 14px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
+          <div style={{fontWeight:700,fontSize:13}}>Roles ({dept.roles.length})</div>
+          <button onClick={onAddRole} style={{background:dept.color+"22",border:`1px solid ${dept.color}55`,borderRadius:18,padding:"4px 12px",color:dept.color,fontSize:11,fontWeight:700,cursor:"pointer"}}>+ Añadir</button>
+        </div>
+        {dept.roles.map(r=>(
+          <div key={r.code} style={{background:"#1e2433",border:"1px solid #2a3142",borderRadius:10,marginBottom:7,overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px"}}>
+              <div style={{width:40,height:40,borderRadius:10,background:r.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:r.text,flexShrink:0}}>{r.code}</div>
+              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{r.label}</div></div>
+              <button onClick={()=>setSheet(r)} style={{background:"#ffffff0a",border:"1px solid #2a3142",borderRadius:7,padding:"5px 12px",color:"#94a3b8",fontSize:16,cursor:"pointer",letterSpacing:2}}>···</button>
+            </div>
+          </div>
+        ))}
+        <div onClick={onAddRole} style={{background:"#1e243340",border:"1px dashed #2a3142",borderRadius:10,padding:"13px",textAlign:"center",marginTop:4,cursor:"pointer"}}>
+          <div style={{fontSize:11,color:"#64748b"}}>＋ Añadir rol</div>
+        </div>
+      </div>
+      {/* Role action sheet */}
+      {sheet&&(
+        <div onClick={()=>setSheet(null)} style={{position:"fixed",inset:0,background:"#00000077",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"18px 18px 0 0",padding:"18px 14px 36px",width:"100%",maxWidth:430,margin:"0 auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18,paddingBottom:14,borderBottom:"1px solid #2a3142"}}>
+              <div style={{width:44,height:44,borderRadius:11,background:sheet.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:900,color:sheet.text}}>{sheet.code}</div>
+              <div><div style={{fontWeight:700,fontSize:15}}>{sheet.label}</div>
+              <div style={{fontSize:11,color:"#64748b",marginTop:1}}>{sheet._confirm==="edit"?"¿Confirmas editar?":sheet._confirm==="delete"?"¿Confirmas eliminar?":"¿Qué quieres hacer?"}</div></div>
+            </div>
+            {!sheet._confirm&&<>
+              <button onClick={()=>setSheet(s=>({...s,_confirm:"edit"}))} style={{width:"100%",display:"flex",alignItems:"center",gap:12,background:"#ffffff08",border:"1px solid #2a3142",borderRadius:10,padding:"12px 14px",marginBottom:8,cursor:"pointer",textAlign:"left"}}>
+                <span style={{fontSize:18}}>✏️</span><div><div style={{fontWeight:600,fontSize:13,color:"#f1f5f9"}}>Editar rol</div><div style={{fontSize:10,color:"#64748b",marginTop:1}}>Cambiar nombre, código y color</div></div>
+              </button>
+              <button onClick={()=>setSheet(s=>({...s,_confirm:"delete"}))} style={{width:"100%",display:"flex",alignItems:"center",gap:12,background:"#ef444411",border:"1px solid #ef444433",borderRadius:10,padding:"12px 14px",marginBottom:12,cursor:"pointer",textAlign:"left"}}>
+                <span style={{fontSize:18}}>🗑️</span><div><div style={{fontWeight:600,fontSize:13,color:"#ef4444"}}>Eliminar rol</div><div style={{fontSize:10,color:"#ef444488",marginTop:1}}>Se eliminará del departamento</div></div>
+              </button>
+              <button onClick={()=>setSheet(null)} style={{width:"100%",padding:"11px",background:"none",border:"1px solid #2a3142",borderRadius:10,color:"#64748b",fontSize:13,fontWeight:600,cursor:"pointer"}}>Cancelar</button>
+            </>}
+            {sheet._confirm==="edit"&&<>
+              <button onClick={()=>{setSheet(null);onEditRole(sheet);}} style={{width:"100%",padding:"13px",background:"#F59E0B",border:"none",borderRadius:10,color:"#1a1a1a",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:8}}>✏️ Sí, editar</button>
+              <button onClick={()=>setSheet(s=>({...s,_confirm:null}))} style={{width:"100%",padding:"11px",background:"none",border:"1px solid #2a3142",borderRadius:10,color:"#64748b",fontSize:13,cursor:"pointer"}}>Volver</button>
+            </>}
+            {sheet._confirm==="delete"&&<>
+              <button onClick={()=>{setSheet(null);onDeleteRole(sheet.code);}} style={{width:"100%",padding:"13px",background:"#ef4444",border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:8}}>🗑️ Sí, eliminar</button>
+              <button onClick={()=>setSheet(s=>({...s,_confirm:null}))} style={{width:"100%",padding:"11px",background:"none",border:"1px solid #2a3142",borderRadius:10,color:"#64748b",fontSize:13,cursor:"pointer"}}>Volver</button>
+            </>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddEmpSheet({dept,onClose,onAdd}) {
+  const [name,setName]=useState("");
+  const [role,setRole]=useState(null);
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#00000088",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"18px 18px 0 0",padding:"18px 14px 40px",width:"100%",maxWidth:430,margin:"0 auto",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:14,paddingBottom:11,borderBottom:"1px solid #2a3142"}}>Añadir empleado</div>
+        <div style={{fontSize:10,color:"#64748b",marginBottom:5,textTransform:"uppercase",letterSpacing:1}}>Nombre</div>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre del empleado" style={{width:"100%",background:"#0f1117",border:"1px solid #2a3142",borderRadius:9,padding:"11px 12px",color:"#f1f5f9",fontSize:13,marginBottom:14,boxSizing:"border-box",outline:"none"}}/>
+        <div style={{fontSize:10,color:"#64748b",marginBottom:9,textTransform:"uppercase",letterSpacing:1}}>Rol <span style={{color:"#475569",textTransform:"none",fontWeight:400}}>(opcional)</span></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:14}}>
+          {dept.roles.map(r=>(
+            <div key={r.code} onClick={()=>setRole(role===r.code?null:r.code)} style={{background:role===r.code?r.color+"44":r.color+"18",border:`2px solid ${role===r.code?r.color:r.color+"33"}`,borderRadius:9,padding:"9px 5px",cursor:"pointer",textAlign:"center"}}>
+              <div style={{fontSize:14,fontWeight:900,color:r.color}}>{r.code}</div>
+              <div style={{fontSize:8,color:"#94a3b8",marginTop:1}}>{r.label}</div>
+              {role===r.code&&<div style={{fontSize:7,color:r.color,marginTop:2}}>✓</div>}
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>{if(name.trim()){onAdd(name.trim(),role);}}} style={{width:"100%",padding:"12px",background:name.trim()?dept.color:"#2a3142",border:"none",borderRadius:9,color:name.trim()?tc(dept.color):"#475569",fontWeight:700,fontSize:13,cursor:name.trim()?"pointer":"default"}}>Añadir empleado</button>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleScreen({dept,employees,onBack,onUpdate,onAddEmp,onOpenEmpWeek}) {
+  const [cellPicker,setCellPicker]=useState(null);
+  const [selDay,setSelDay]=useState(0);
+  const [slots,setSlots]=useState(DEFAULT_SLOTS);
+  const [weekOffset,setWeekOffset]=useState(0);
+  const [showAddEmp,setShowAddEmp]=useState(false);
+  const [showHours,setShowHours]=useState(false);
+  const [showFullWeek,setShowFullWeek]=useState(false);
+  const [confirmClear,setConfirmClear]=useState(false);
+
+  const monday=getMonday(weekOffset);
+  const weekEnd=new Date(monday);weekEnd.setDate(monday.getDate()+6);
+  const weekLabel=`${fmtDate(monday)} – ${fmtDate(weekEnd)}`;
+  const spans=shiftSpans(slots);
+  const deptEmps=employees.filter(e=>e.dept===dept.id);
+  const dynSpans=spans;
+
+  function handleCell(info) {
+    if (info.type==="name") { onOpenEmpWeek(info.emp,weekOffset); return; }
+    setCellPicker(info);
+  }
+  function handleAssign(code,keys) {
+    if (!cellPicker) return;
+    keys.forEach(k=>onUpdate(cellPicker.empId,cellPicker.wk,cellPicker.dayIdx,k,code));
+    setCellPicker(null);
+  }
+
+  return (
+    <div style={{background:"#0f1117",minHeight:"100vh",color:"#f1f5f9",maxWidth:430,margin:"0 auto",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg,#1e2433,#161b27)",padding:"12px 13px 9px",borderBottom:"1px solid #2a3142",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
+          <button onClick={onBack} style={{background:"none",border:"none",color:dept.color,fontSize:22,cursor:"pointer"}}>‹</button>
+          <div style={{flex:1}}><div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:1}}>Horario semanal</div>
+          <div style={{fontWeight:700,fontSize:14}}>{dept.icon} {dept.label}</div></div>
+          <div style={{background:"#ffffff0a",border:"1px solid #2a3142",borderRadius:18,padding:"4px 10px",fontSize:10,fontWeight:700,color:"#e2e8f0",whiteSpace:"nowrap"}}>{weekLabel}</div>
+          <button onClick={()=>setShowHours(true)} style={{background:"#ffffff0a",border:"1px solid #2a3142",borderRadius:18,padding:"4px 10px",color:"#94a3b8",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>⏱</button>
+          <button onClick={()=>setShowAddEmp(true)} style={{background:dept.color+"22",border:`1px solid ${dept.color}55`,borderRadius:18,padding:"4px 10px",color:dept.color,fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>+Emp</button>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:4}}>
+          <button onClick={()=>setWeekOffset(w=>w-1)} style={{flexShrink:0,background:"#ffffff0a",border:"1px solid #2a3142",borderRadius:"50%",width:26,height:26,color:"#94a3b8",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+          <div style={{display:"flex",gap:4,overflowX:"auto",flex:1,paddingBottom:1}}>
+            {DAYS_S.map((d,i)=>(
+              <div key={i} onClick={()=>setSelDay(i)} style={{flexShrink:0,minWidth:33,padding:"4px 7px",borderRadius:18,textAlign:"center",background:selDay===i?dept.color:"#0f1117",border:`1px solid ${selDay===i?dept.color:"#2a3142"}`,color:selDay===i?tc(dept.color):"#64748b",fontSize:10,fontWeight:700,cursor:"pointer"}}>{d}</div>
+            ))}
+          </div>
+          <button onClick={()=>setWeekOffset(w=>w+1)} style={{flexShrink:0,background:"#ffffff0a",border:"1px solid #2a3142",borderRadius:"50%",width:26,height:26,color:"#94a3b8",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+          <button onClick={()=>setShowFullWeek(true)} style={{flexShrink:0,background:dept.color+"22",border:`1px solid ${dept.color}55`,borderRadius:"50%",width:26,height:26,color:dept.color,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>▦</button>
+        </div>
+      </div>
+      {/* Day banner */}
+      <div style={{background:dept.color+"1a",borderBottom:`2px solid ${dept.color}44`,padding:"4px 13px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:7}}>
+          <span style={{fontWeight:800,fontSize:12,color:dept.color}}>{DAYS_F[selDay]}</span>
+          <span style={{fontSize:10,color:"#64748b"}}>{dayDate(monday,selDay)}</span>
+        </div>
+        <span style={{fontSize:10,color:"#64748b"}}>{deptEmps.length} empleados</span>
+      </div>
+      {/* Grid */}
+      <ScheduleGrid dept={dept} employees={employees} slots={slots} weekOffset={weekOffset} selectedDay={selDay} onCellClick={handleCell} rowKey="day"/>
+      {/* Clear button */}
+      <div style={{padding:"7px 12px",background:"#161b27",borderTop:"1px solid #2a3142",flexShrink:0}}>
+        <button onClick={()=>setConfirmClear(true)} style={{width:"100%",padding:"9px",background:"#ef444411",border:"1px solid #ef444433",borderRadius:9,color:"#ef4444",fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑 Limpiar semana completa</button>
+      </div>
+      {/* Cell picker */}
+      {cellPicker&&<CellPicker cellPicker={cellPicker} employees={employees} dept={dept} slots={slots} onAssign={handleAssign} onClose={()=>setCellPicker(null)}/>}
+      {/* Add employee */}
+      {showAddEmp&&<AddEmpSheet dept={dept} onClose={()=>setShowAddEmp(false)} onAdd={(n,r)=>{onAddEmp(n,r,wkKey(weekOffset));setShowAddEmp(false);}}/>}
+      {/* Edit hours */}
+      {showHours&&(
+        <div onClick={()=>setShowHours(false)} style={{position:"fixed",inset:0,background:"#00000088",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"18px 18px 0 0",padding:"18px 14px 40px",width:"100%",maxWidth:430,margin:"0 auto",maxHeight:"80vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:11,borderBottom:"1px solid #2a3142"}}>
+              <div style={{fontWeight:700,fontSize:14}}>⏱ Editar horas</div>
+              <div style={{display:"flex",gap:6}}>
+                <div style={{display:"flex",background:"#0f1117",borderRadius:7,padding:2,gap:2}}>
+                  <button onClick={()=>setSlots(DEFAULT_SLOTS)} style={{padding:"3px 9px",borderRadius:5,border:"none",background:slots===DEFAULT_SLOTS||slots.length===DEFAULT_SLOTS.length?"#F59E0B":"none",color:slots.length===DEFAULT_SLOTS.length?"#1a1a1a":"#64748b",fontSize:10,fontWeight:700,cursor:"pointer"}}>1h</button>
+                  <button onClick={()=>setSlots(SLOTS_30)} style={{padding:"3px 9px",borderRadius:5,border:"none",background:slots.length===SLOTS_30.length?"#F59E0B":"none",color:slots.length===SLOTS_30.length?"#1a1a1a":"#64748b",fontSize:10,fontWeight:700,cursor:"pointer"}}>30m</button>
+                </div>
+                <button onClick={()=>setSlots(DEFAULT_SLOTS)} style={{background:"none",border:"none",color:"#64748b",fontSize:10,cursor:"pointer"}}>Reset</button>
+              </div>
+            </div>
+            {Object.entries(SHIFT_META).map(([sid,sm])=>{
+              const grpSlots=slots.filter(h=>h.shiftId===sid);
+              if(!grpSlots.length) return null;
+              return (
+                <div key={sid} style={{marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                    <div style={{fontSize:10,fontWeight:800,color:sm.color,textTransform:"uppercase",letterSpacing:1}}>{sm.label}</div>
+                    <div style={{display:"flex",gap:5}}>
+                      <button onClick={()=>{const last=slots.map(h=>h.shiftId).lastIndexOf(sid);if(last!==-1&&grpSlots.length>1){const n=[...slots];n.splice(last,1);setSlots(n);}}} style={{background:"#ef444411",border:"1px solid #ef444433",borderRadius:5,padding:"2px 8px",color:"#ef4444",fontSize:12,cursor:"pointer",fontWeight:700}}>−</button>
+                      <button onClick={()=>{const last=slots.map(h=>h.shiftId).lastIndexOf(sid);if(last===-1)return;const h=parseInt(slots[last].label)+1;const n=[...slots];n.splice(last+1,0,{label:`${h}:00`,shiftId:sid});setSlots(n);}} style={{background:sm.color+"22",border:`1px solid ${sm.color}55`,borderRadius:5,padding:"2px 8px",color:sm.color,fontSize:12,cursor:"pointer",fontWeight:700}}>+</button>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {grpSlots.map((h,i)=><div key={i} style={{background:sm.color+"22",border:`1px solid ${sm.color}55`,borderRadius:7,padding:"4px 9px",fontSize:11,fontWeight:700,color:sm.color}}>{h.label}</div>)}
+                  </div>
+                </div>
+              );
+            })}
+            <button onClick={()=>setShowHours(false)} style={{width:"100%",padding:"12px",background:"#F59E0B",border:"none",borderRadius:10,color:"#1a1a1a",fontWeight:700,fontSize:13,cursor:"pointer",marginTop:6}}>Aplicar</button>
+          </div>
+        </div>
+      )}
+      {/* Full week overview */}
+      {showFullWeek&&(
+        <div style={{position:"fixed",inset:0,background:"#0f1117",zIndex:100,display:"flex",flexDirection:"column",maxWidth:430,margin:"0 auto"}}>
+          <div style={{background:"linear-gradient(135deg,#1e2433,#161b27)",padding:"13px 14px",borderBottom:"1px solid #2a3142",display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={()=>setShowFullWeek(false)} style={{background:"none",border:"none",color:dept.color,fontSize:22,cursor:"pointer"}}>‹</button>
+            <div style={{flex:1}}><div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:1}}>Semana completa</div><div style={{fontWeight:700,fontSize:14}}>{weekLabel}</div></div>
+          </div>
+          <div style={{flex:1,overflowY:"auto",padding:"10px 12px"}}>
+            {deptEmps.map(emp=>{
+              const wk=wkKey(weekOffset);
+              const empH=countH(emp.schedules[wk]);
+              return (
+                <div key={emp.id} style={{background:"#1e2433",border:"1px solid #2a3142",borderRadius:10,marginBottom:8,overflow:"hidden"}}>
+                  <div style={{padding:"8px 12px",background:"#161b27",borderBottom:"1px solid #2a3142",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontWeight:700,fontSize:13}}>{emp.name}</div>
+                    <div style={{fontSize:11,color:empH>=40?"#10B981":dept.color,fontWeight:700}}>{empH}h</div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,padding:"7px 9px"}}>
+                    {DAYS_S.map((d,di)=>{
+                      const dayData=emp.schedules[wk]?.[di]||{};
+                      const codes=[...new Set(Object.values(dayData).filter(Boolean))];
+                      const hasV=codes.includes("VAC"),hasB=codes.includes("BAJA");
+                      const roles=codes.filter(c=>c!=="VAC"&&c!=="BAJA"&&!c.startsWith("TIT:"));
+                      return (
+                        <div key={di} style={{textAlign:"center"}}>
+                          <div style={{fontSize:8,color:"#64748b",marginBottom:2,fontWeight:700}}>{d}</div>
+                          {hasV?<div style={{background:"#06B6D422",border:"1px solid #06B6D466",borderRadius:4,padding:"2px 0",fontSize:8}}>🏖️</div>
+                          :hasB?<div style={{background:"#ef444422",border:"1px solid #ef444466",borderRadius:4,padding:"2px 0",fontSize:8}}>🤒</div>
+                          :roles.length>0?roles.slice(0,2).map(c=>{const r=dept.roles.find(x=>x.code===c);return r?<div key={c} style={{background:r.color+"33",border:`1px solid ${r.color}66`,borderRadius:4,padding:"1px 0",fontSize:7,fontWeight:800,color:r.color,marginBottom:1}}>{c}</div>:null;})
+                          :<div style={{height:16,background:"#0f1117",borderRadius:4}}/>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {/* Confirm clear */}
+      {confirmClear&&(
+        <div onClick={()=>setConfirmClear(false)} style={{position:"fixed",inset:0,background:"#00000077",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"18px 18px 0 0",padding:"20px 14px 40px",width:"100%",maxWidth:430,margin:"0 auto"}}>
+            <div style={{fontSize:26,textAlign:"center",marginBottom:8}}>🗑</div>
+            <div style={{fontWeight:800,fontSize:15,textAlign:"center",marginBottom:5}}>Limpiar semana</div>
+            <div style={{fontSize:12,color:"#64748b",textAlign:"center",marginBottom:16}}>{weekLabel} · todos los empleados</div>
+            <div style={{background:"#ef444411",border:"1px solid #ef444433",borderRadius:9,padding:"10px 12px",marginBottom:14,fontSize:12,color:"#ef4444"}}>⚠️ Esta acción no se puede deshacer.</div>
+            <button onClick={()=>{
+              const wk=wkKey(weekOffset);
+              deptEmps.forEach(emp=>slots.forEach(h=>[0,1,2,3,4,5,6].forEach(d=>onUpdate(emp.id,wk,d,h.label,null))));
+              setConfirmClear(false);
+            }} style={{width:"100%",padding:"13px",background:"#ef4444",border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:8}}>Sí, limpiar</button>
+            <button onClick={()=>setConfirmClear(false)} style={{width:"100%",padding:"11px",background:"none",border:"1px solid #2a3142",borderRadius:10,color:"#64748b",fontSize:12,cursor:"pointer"}}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmpWeekScreen({emp,dept,employees,weekOffset,onBack,onUpdate}) {
+  const [cellPicker,setCellPicker]=useState(null);
+  const [rangeModal,setRangeModal]=useState(null);
+  const [fromDay,setFromDay]=useState(0);
+  const [toDay,setToDay]=useState(6);
+
+  const monday=getMonday(weekOffset);
+  const wk=wkKey(weekOffset);
+  const hours=countH(emp.schedules[wk]);
+  const slots=DEFAULT_SLOTS;
+  const spans=shiftSpans(slots);
+  const totalW=NAME_W+slots.length*HOUR_W+36;
+  const deptEmps=employees.filter(e=>e.dept===dept.id);
+
+  function handleCell(info) {
+    if (info.type==="name") return;
+    setCellPicker(info);
+  }
+  function handleAssign(code,keys) {
+    if (!cellPicker) return;
+    keys.forEach(k=>onUpdate(cellPicker.empId,cellPicker.wk,cellPicker.dayIdx,k,code));
+    setCellPicker(null);
+  }
+  function applyRange(type) {
+    const from=Math.min(fromDay,toDay),to=Math.max(fromDay,toDay);
+    for(let d=from;d<=to;d++) slots.forEach(h=>onUpdate(emp.id,wk,d,h.label,type));
+    setRangeModal(null);
+  }
+
+  return (
+    <div style={{background:"#0f1117",minHeight:"100vh",color:"#f1f5f9",maxWidth:430,margin:"0 auto",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"linear-gradient(135deg,#1e2433,#161b27)",padding:"12px 13px 10px",borderBottom:"1px solid #2a3142",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={onBack} style={{background:"none",border:"none",color:dept.color,fontSize:22,cursor:"pointer"}}>‹</button>
+          <div style={{flex:1}}><div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:1}}>Semana del empleado</div>
+          <div style={{fontWeight:800,fontSize:17}}>{emp.name}</div></div>
+          <button onClick={()=>setRangeModal("VAC")} style={{background:"#06B6D422",border:"2px solid #06B6D455",borderRadius:18,padding:"5px 11px",color:"#06B6D4",fontSize:12,fontWeight:700,cursor:"pointer"}}>🏖️</button>
+          <button onClick={()=>setRangeModal("BAJA")} style={{background:"#ef444422",border:"2px solid #ef444455",borderRadius:18,padding:"5px 11px",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer"}}>🤒</button>
+          <div style={{textAlign:"right",marginLeft:4}}>
+            <div style={{fontSize:18,fontWeight:900,color:hours>=40?"#10B981":dept.color}}>{hours}h</div>
+            <div style={{fontSize:8,color:"#64748b"}}>semana</div>
+          </div>
+        </div>
+      </div>
+      {/* Week grid — days as rows */}
+      <div style={{overflowX:"auto",flex:1}}>
+        <div style={{width:totalW}}>
+          {/* Shift group header */}
+          <div style={{display:"flex",background:"#161b27",borderBottom:"1px solid #2a3142",position:"sticky",top:0,zIndex:6}}>
+            <div style={{width:NAME_W,flexShrink:0,borderRight:"1px solid #2a3142"}}/>
+            {spans.map(g=>{const sc=SHIFT_META[g.id].color;return <div key={g.id} style={{width:g.cols*HOUR_W,flexShrink:0,textAlign:"center",padding:"4px 0",fontSize:9,fontWeight:800,color:sc,textTransform:"uppercase",letterSpacing:0.8,background:sc+"18",borderRight:`1px solid ${sc}44`,borderTop:`2px solid ${sc}`}}>{g.label}</div>;})}
+            <div style={{width:36,flexShrink:0,borderLeft:"1px solid #2a3142",textAlign:"center",padding:"4px 0",fontSize:9,fontWeight:700,color:"#64748b"}}>h</div>
+          </div>
+          {/* Hour headers */}
+          <div style={{display:"flex",background:"#1a1f2e",borderBottom:"2px solid #2a3142",position:"sticky",top:22,zIndex:5}}>
+            <div style={{width:NAME_W,flexShrink:0,padding:"4px 6px",fontSize:9,fontWeight:700,color:"#64748b",borderRight:"1px solid #2a3142",display:"flex",alignItems:"center"}}>Día</div>
+            {slots.map((h,hi)=>{const sc=SHIFT_META[h.shiftId].color,isF=hi===0||slots[hi-1].shiftId!==h.shiftId;return <div key={hi} style={{width:HOUR_W,flexShrink:0,textAlign:"center",padding:"4px 0",fontSize:8,fontWeight:700,color:sc,background:sc+"0d",borderRight:`1px solid ${sc}33`,borderLeft:isF?`2px solid ${sc}66`:"none"}}>{h.label}</div>;})}
+            <div style={{width:36,flexShrink:0,borderLeft:"1px solid #2a3142"}}/>
+          </div>
+          {/* Day rows */}
+          {DAYS_F.map((dayName,di)=>{
+            const dayH=Object.values(emp.schedules[wk]?.[di]||{}).filter(v=>v&&v!=="BAJA"&&v!=="VAC"&&!v?.startsWith("TIT:")).length;
+            const roleObj=c=>dept.roles.find(r=>r.code===c);
+            return (
+              <div key={di} style={{display:"flex",borderBottom:"1px solid #2a3142",background:di%2===0?"#1a1f2e":"#161b27",minHeight:42}}>
+                <div style={{width:NAME_W,flexShrink:0,padding:"0 6px",fontSize:10,fontWeight:700,color:dept.color,borderRight:"1px solid #2a3142",display:"flex",flexDirection:"column",justifyContent:"center",lineHeight:1.3}}>
+                  <div>{DAYS_S[di]}</div>
+                  <div style={{fontSize:8,color:"#64748b"}}>{dayDate(monday,di)}</div>
+                  {dayH>0&&<div style={{fontSize:9,fontWeight:800,color:dept.color,marginTop:2}}>{dayH}h</div>}
+                </div>
+                {slots.map((h,hi)=>{
+                  const code=emp.schedules[wk]?.[di]?.[h.label]||null;
+                  const r=code?roleObj(code):null;
+                  const sc=SHIFT_META[h.shiftId].color;
+                  const styles=cellBg(code,r,sc);
+                  return (
+                    <div key={hi} onClick={()=>setCellPicker({empId:emp.id,wk,dayIdx:di,slotKey:h.label,shiftId:h.shiftId})}
+                      style={{width:HOUR_W,flexShrink:0,minHeight:42,cursor:"pointer",margin:"2px 1px",borderRadius:4,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,overflow:"hidden",...styles}}>
+                      <CellContent code={code} r={r} empName={emp.name} employees={employees}/>
+                    </div>
+                  );
+                })}
+                <div style={{width:36,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:dayH>0?dept.color:"#2a3142",borderLeft:"1px solid #2a3142"}}>{dayH>0?dayH:""}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* Cell picker */}
+      {cellPicker&&<CellPicker cellPicker={cellPicker} employees={employees} dept={dept} slots={slots} onAssign={handleAssign} onClose={()=>setCellPicker(null)}/>}
+      {/* Range modal */}
+      {rangeModal&&(
+        <div onClick={()=>setRangeModal(null)} style={{position:"fixed",inset:0,background:"#00000088",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"18px 18px 0 0",padding:"20px 14px 44px",width:"100%",maxWidth:430,margin:"0 auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,paddingBottom:12,borderBottom:"1px solid #2a3142"}}>
+              <div style={{fontSize:28}}>{rangeModal==="VAC"?"🏖️":"🤒"}</div>
+              <div><div style={{fontWeight:800,fontSize:15,color:rangeModal==="VAC"?"#06B6D4":"#ef4444"}}>{rangeModal==="VAC"?"Vacaciones":"Baja médica"}</div>
+              <div style={{fontSize:11,color:"#64748b",marginTop:1}}>Selecciona el rango</div></div>
+            </div>
+            {["Desde","Hasta"].map((lbl,li)=>(
+              <div key={lbl} style={{marginBottom:14}}>
+                <div style={{fontSize:10,color:"#64748b",marginBottom:7,textTransform:"uppercase",letterSpacing:1}}>{lbl}</div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {DAYS_F.map((d,i)=>{
+                    const sel=li===0?fromDay===i:toDay===i;
+                    const ac=rangeModal==="VAC"?"#06B6D4":"#ef4444";
+                    return <div key={i} onClick={()=>li===0?setFromDay(i):setToDay(i)} style={{padding:"5px 10px",borderRadius:8,background:sel?ac:"#0f1117",border:`1px solid ${sel?ac:"#2a3142"}`,color:sel?"#fff":"#94a3b8",fontSize:11,fontWeight:700,cursor:"pointer",opacity:li===1&&i<fromDay?0.35:1}}>{DAYS_S[i]}</div>;
+                  })}
+                </div>
+              </div>
+            ))}
+            <div style={{background:rangeModal==="VAC"?"#06B6D411":"#ef444411",border:`1px solid ${rangeModal==="VAC"?"#06B6D433":"#ef444433"}`,borderRadius:8,padding:"9px 12px",marginBottom:12,fontSize:11,color:rangeModal==="VAC"?"#06B6D4":"#ef4444"}}>
+              {DAYS_F[Math.min(fromDay,toDay)]} → {DAYS_F[Math.max(fromDay,toDay)]} · {Math.abs(toDay-fromDay)+1} día{Math.abs(toDay-fromDay)>0?"s":""}
+            </div>
+            <button onClick={()=>applyRange(rangeModal)} style={{width:"100%",padding:"13px",background:rangeModal==="VAC"?"#06B6D4":"#ef4444",border:"none",borderRadius:10,color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
+              Aplicar {rangeModal==="VAC"?"vacaciones":"baja"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WeekPreviewModal({dept,employees,onClose,onEdit}) {
+  const [pvDay,setPvDay]=useState(0);
+  const pvEmps=employees.filter(e=>e.dept===dept.id);
+  const monday=getMonday(0);
+  const SHIFT_GROUPS=[
+    {label:"Mañana",color:"#F59E0B",slots:["8:00","9:00","10:00","11:00"]},
+    {label:"Almuerzo",color:"#3B82F6",slots:["12:00","13:00","14:00","15:00"]},
+    {label:"Tarde",color:"#10B981",slots:["16:00","17:00","18:00"]},
+    {label:"Cena",color:"#8B5CF6",slots:["19:00","20:00","21:00","22:00"]},
+    {label:"Cierre",color:"#6B7280",slots:["23:00"]},
+  ];
+  const allSlots=SHIFT_GROUPS.flatMap(g=>g.slots.map(s=>({slot:s,color:g.color})));
+  const totalW=NAME_W+allSlots.length*26+36;
+  const roleObj=c=>dept.roles.find(r=>r.code===c);
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"#000000bb",zIndex:100,display:"flex",flexDirection:"column"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#0f1117",flex:1,display:"flex",flexDirection:"column",maxWidth:430,width:"100%",margin:"0 auto"}}>
+        <div style={{background:"linear-gradient(135deg,#1e2433,#161b27)",padding:"13px 14px",borderBottom:"1px solid #2a3142",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onClose} style={{background:"none",border:"none",color:dept.color,fontSize:22,cursor:"pointer"}}>‹</button>
+          <div style={{flex:1}}><div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:1}}>Horario semanal</div><div style={{fontWeight:700,fontSize:15}}>{dept.icon} {dept.label}</div></div>
+          <button onClick={onEdit} style={{background:dept.color+"22",border:`1px solid ${dept.color}55`,borderRadius:18,padding:"5px 12px",color:dept.color,fontSize:11,fontWeight:700,cursor:"pointer"}}>Editar →</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto"}}>
+          {DAYS_F.map((dayName,di)=>(
+            <div key={di}>
+              <div style={{background:dept.color+"1a",borderBottom:`1px solid ${dept.color}44`,borderTop:"1px solid #2a3142",padding:"3px 9px",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontWeight:800,fontSize:10,color:dept.color}}>{dayName}</span>
+                <span style={{fontSize:9,color:"#64748b"}}>{dayDate(monday,di)}</span>
+              </div>
+              <div style={{overflowX:"auto"}}>
+                <div style={{width:totalW}}>
+                  <div style={{display:"flex",background:"#161b27"}}>
+                    <div style={{width:NAME_W,flexShrink:0,borderRight:"1px solid #2a3142"}}/>
+                    {SHIFT_GROUPS.map(g=><div key={g.label} style={{width:g.slots.length*26,flexShrink:0,textAlign:"center",padding:"2px 0",fontSize:6,fontWeight:800,color:g.color,textTransform:"uppercase",background:g.color+"18",borderRight:`1px solid ${g.color}44`,borderTop:`2px solid ${g.color}`}}>{g.label}</div>)}
+                    <div style={{width:36,flexShrink:0,borderLeft:"1px solid #2a3142"}}/>
+                  </div>
+                  <div style={{display:"flex",background:"#1a1f2e",borderBottom:"1px solid #2a3142"}}>
+                    <div style={{width:NAME_W,flexShrink:0,padding:"2px 5px",fontSize:7,color:"#64748b",borderRight:"1px solid #2a3142"}}>Nombre</div>
+                    {allSlots.map((s,si)=><div key={si} style={{width:26,flexShrink:0,textAlign:"center",padding:"2px 0",fontSize:6,fontWeight:700,color:s.color,background:s.color+"0d",borderRight:`1px solid ${s.color}22`}}>{s.slot}</div>)}
+                    <div style={{width:36,flexShrink:0,borderLeft:"1px solid #2a3142"}}/>
+                  </div>
+                  {pvEmps.map((emp,ei)=>{
+                    const rowH=allSlots.filter(s=>emp.schedules["w0"]?.[di]?.[s.slot]).length;
+                    return (
+                      <div key={emp.id} style={{display:"flex",borderBottom:"1px solid #2a314255",background:ei%2===0?"#1a1f2e":"#161b27",minHeight:26}}>
+                        <div style={{width:NAME_W,flexShrink:0,padding:"0 4px",fontSize:8,fontWeight:600,color:"#e2e8f0",borderRight:"1px solid #2a3142",display:"flex",alignItems:"center",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{emp.name}</div>
+                        {allSlots.map((s,si)=>{
+                          const code=emp.schedules["w0"]?.[di]?.[s.slot]||null;
+                          const r=code?roleObj(code):null;
+                          return (
+                            <div key={si} style={{width:26,flexShrink:0,minHeight:26,background:code==="BAJA"?"#ef444433":code==="VAC"?"#06B6D433":code?.startsWith("TIT:")?"#8B5CF633":r?r.color+"44":s.color+"08",borderRight:`1px solid ${s.color}11`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              {code==="BAJA"?<span style={{fontSize:7}}>🤒</span>:code==="VAC"?<span style={{fontSize:7}}>🏖️</span>:code?<span style={{fontSize:6,fontWeight:900,color:r?.color}}>{code}</span>:<span style={{width:2,height:2,borderRadius:"50%",background:s.color+"33",display:"block"}}/>}
+                            </div>
+                          );
+                        })}
+                        <div style={{width:36,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:rowH>0?dept.color:"#2a3142",borderLeft:"1px solid #2a3142"}}>{rowH>0?rowH:""}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────
+function App() {
+  const [screen,   setScreen]   = useState("main");
+  const [depts,    setDepts]    = useState(INITIAL_DEPTS);
+  const [emps,     setEmps]     = useState(INITIAL_EMPLOYEES);
+  const [activeDeptId, setActiveDeptId] = useState(null);
+  const [activeRole,   setActiveRole]   = useState(null);
+  const [editingDept,  setEditingDept]  = useState(null);
+  const [confirmDelDept, setConfirmDelDept] = useState(null);
+  const [previewDept,    setPreviewDept]    = useState(null);
+  const [activeEmp,      setActiveEmp]      = useState(null);
+  const [empWeekOffset,  setEmpWeekOffset]  = useState(0);
+
+  const dept = depts.find(d=>d.id===activeDeptId);
+
+  // ── Data updater ──
+  function updateSchedule(empId,wk,dayIdx,slotKey,code) {
+    setEmps(prev=>prev.map(e=>{
+      if (e.id!==empId) return e;
+      const week={...(e.schedules[wk]||{})};
+      const day={...(week[dayIdx]||{})};
+      if (code) day[slotKey]=code; else delete day[slotKey];
+      week[dayIdx]=day;
+      return {...e,schedules:{...e.schedules,[wk]:week}};
+    }));
+  }
+  function addEmployee(name,role,wk) {
+    const schedules={};
+    if (role) {
+      const week={};
+      [0,1,2,3,4,5,6].forEach(d=>{const day={};DEFAULT_SLOTS.forEach(h=>{day[h.label]=role;});week[d]=day;});
+      schedules[wk]=week;
+    }
+    setEmps(prev=>[...prev,{id:Date.now(),name,dept:activeDeptId,schedules}]);
+  }
+  function saveRole(updated) {
+    setDepts(prev=>prev.map(d=>{
+      if (d.id!==activeDeptId) return d;
+      const roles=activeRole
+        ? d.roles.map(r=>r.code===activeRole.code?{...r,...updated}:r)
+        : [...d.roles,updated];
+      return {...d,roles};
+    }));
+    if (activeRole&&updated.code!==activeRole.code) {
+      setEmps(prev=>prev.map(e=>{
+        if (e.dept!==activeDeptId) return e;
+        const ns={};
+        Object.entries(e.schedules||{}).forEach(([wk,week])=>{
+          if (!week||typeof week!=="object"){ns[wk]=week;return;}
+          const nw={};
+          Object.entries(week).forEach(([di,shifts])=>{
+            if (!shifts){nw[di]=shifts;return;}
+            const nd={};
+            Object.entries(shifts).forEach(([sl,r])=>{nd[sl]=r===activeRole.code?updated.code:r;});
+            nw[di]=nd;
+          });
+          ns[wk]=nw;
+        });
+        return {...e,schedules:ns};
+      }));
+    }
+    setScreen("dept");
+  }
+  function saveDept({label,icon,color}) {
+    if (editingDept) {
+      setDepts(prev=>prev.map(d=>d.id===editingDept.id?{...d,label,icon,color}:d));
+    } else {
+      const id=label.toLowerCase().replace(/\s+/g,"_")+"_"+Date.now();
+      setDepts(prev=>[...prev,{id,label,icon,color,roles:[...DEFAULT_ROLES]}]);
+    }
+    setScreen("main");
+  }
+  function deleteDeptConfirmed() {
+    setDepts(prev=>prev.filter(d=>d.id!==confirmDelDept.id));
+    setConfirmDelDept(null);
+  }
+
+  // ── Route: emp week view ──
+  if (screen==="empWeek"&&dept&&activeEmp) {
+    const emp=emps.find(e=>e.id===activeEmp.id)||activeEmp;
+    return <EmpWeekScreen emp={emp} dept={dept} employees={emps} weekOffset={empWeekOffset} onBack={()=>setScreen("schedule")} onUpdate={updateSchedule}/>;
+  }
+  // ── Route: schedule ──
+  if (screen==="schedule"&&dept) {
+    return <ScheduleScreen dept={dept} employees={emps} onBack={()=>setScreen("dept")} onUpdate={updateSchedule} onAddEmp={addEmployee}
+      onOpenEmpWeek={(emp,wo)=>{setActiveEmp(emp);setEmpWeekOffset(wo);setScreen("empWeek");}}/>;
+  }
+  // ── Route: role form ──
+  if (screen==="roleForm"&&dept) {
+    return <RoleFormScreen role={activeRole} dept={dept} employees={emps} onBack={()=>setScreen("dept")} onSave={saveRole}/>;
+  }
+  // ── Route: dept form ──
+  if (screen==="deptForm") {
+    return <DeptFormScreen dept={editingDept} onBack={()=>setScreen("main")} onSave={saveDept} isNew={!editingDept}/>;
+  }
+  // ── Route: dept ──
+  if (screen==="dept"&&dept) {
+    return <DeptScreen dept={dept} employees={emps} onBack={()=>setScreen("main")}
+      onEditRole={r=>{setActiveRole(r);setScreen("roleForm");}}
+      onAddRole={()=>{setActiveRole(null);setScreen("roleForm");}}
+      onDeleteRole={code=>setDepts(prev=>prev.map(d=>d.id===activeDeptId?{...d,roles:d.roles.filter(r=>r.code!==code)}:d))}
+      onOpenSchedule={()=>setScreen("schedule")}/>;
+  }
+
+  // ── Main screen ──
+  const today=new Date(),dow=today.getDay(),mon=new Date(today);
+  mon.setDate(today.getDate()+(dow===0?-6:1-dow));
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const mainWeekLabel=`${mon.getDate()} – ${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
+
+  return (
+    <div style={{background:"#0f1117",minHeight:"100vh",color:"#f1f5f9",maxWidth:430,margin:"0 auto",paddingBottom:40}}>
+      <div style={{background:"linear-gradient(135deg,#1e2433,#161b27)",padding:"22px 15px 18px",borderBottom:"1px solid #2a3142"}}>
+        <div style={{fontSize:9,color:"#64748b",letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>Horarios</div>
+        <div style={{fontSize:20,fontWeight:800,marginBottom:2}}>{mainWeekLabel}</div>
+        <div style={{fontSize:11,color:"#64748b"}}>Gestiona tus departamentos y roles</div>
+      </div>
+      <div style={{padding:"18px 14px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:1}}>Departamentos</div>
+          <button onClick={()=>{setEditingDept(null);setScreen("deptForm");}} style={{background:"#F59E0B22",border:"1px solid #F59E0B55",borderRadius:18,padding:"4px 12px",color:"#F59E0B",fontSize:11,fontWeight:700,cursor:"pointer"}}>+ Añadir</button>
+        </div>
+        {depts.map(d=>{
+          const de=emps.filter(e=>e.dept===d.id);
+          const totalH=de.reduce((s,e)=>s+countH(e.schedules["w0"]),0);
+          return (
+            <div key={d.id} onClick={()=>{setActiveDeptId(d.id);setScreen("dept");}} style={{background:"#1e2433",border:`1px solid ${d.color}33`,borderRadius:14,marginBottom:10,overflow:"hidden",cursor:"pointer"}}>
+              <div style={{height:4,background:`linear-gradient(90deg,${d.color},${d.color}55)`}}/>
+              <div style={{padding:"13px 13px 10px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:9}}>
+                  <div style={{display:"flex",alignItems:"center",gap:9}}>
+                    <div style={{fontSize:20}}>{d.icon}</div>
+                    <button onClick={e=>{e.stopPropagation();setPreviewDept(d);}} style={{background:d.color+"18",border:`1px solid ${d.color}44`,borderRadius:9,padding:"4px 10px",color:d.color,fontSize:10,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>📅 Ver semana</button>
+                  </div>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <button onClick={e=>{e.stopPropagation();setEditingDept(d);setScreen("deptForm");}} style={{background:"#ffffff0a",border:"1px solid #2a3142",borderRadius:7,padding:"4px 8px",color:"#94a3b8",fontSize:12,cursor:"pointer"}}>✏️</button>
+                    <button onClick={e=>{e.stopPropagation();setConfirmDelDept(d);}} style={{background:"#ef444411",border:"1px solid #ef444433",borderRadius:7,padding:"4px 8px",color:"#ef4444",fontSize:12,cursor:"pointer"}}>🗑</button>
+                    <div style={{background:d.color+"22",border:`1px solid ${d.color}55`,borderRadius:18,padding:"2px 9px",fontSize:10,color:d.color,fontWeight:700}}>{de.length} pers.</div>
+                  </div>
+                </div>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:9}}>{d.label}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:9}}>
+                  {d.roles.slice(0,7).map(r=><div key={r.code} style={{background:r.color+"22",border:`1px solid ${r.color}55`,borderRadius:18,padding:"1px 8px",fontSize:9,color:r.color,fontWeight:700}}>{r.code}</div>)}
+                  {d.roles.length>7&&<div style={{borderRadius:18,padding:"1px 8px",fontSize:9,color:"#64748b",border:"1px solid #2a3142"}}>+{d.roles.length-7}</div>}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #2a3142",paddingTop:8}}>
+                  <span style={{fontSize:10,color:"#64748b"}}>{d.roles.length} roles</span>
+                  <span style={{fontSize:10,color:d.color,fontWeight:600}}>{totalH}h / semana →</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div onClick={()=>{setEditingDept(null);setScreen("deptForm");}} style={{background:"#1e243340",border:"1px dashed #F59E0B44",borderRadius:14,padding:"18px",textAlign:"center",marginTop:4,cursor:"pointer"}}>
+          <div style={{fontSize:22,marginBottom:4}}>＋</div>
+          <div style={{fontSize:12,fontWeight:600,color:"#F59E0B"}}>Nuevo departamento</div>
+          <div style={{fontSize:10,color:"#475569",marginTop:2}}>Se crean 10 roles por defecto</div>
+        </div>
+      </div>
+      {/* Week preview modal */}
+      {previewDept&&<WeekPreviewModal dept={previewDept} employees={emps} onClose={()=>setPreviewDept(null)} onEdit={()=>{setActiveDeptId(previewDept.id);setPreviewDept(null);setScreen("dept");}}/>}
+      {/* Confirm delete dept */}
+      {confirmDelDept&&(
+        <div onClick={()=>setConfirmDelDept(null)} style={{position:"fixed",inset:0,background:"#00000077",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1e2433",borderRadius:"18px 18px 0 0",padding:"20px 14px 40px",width:"100%",maxWidth:430,margin:"0 auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18,paddingBottom:12,borderBottom:"1px solid #2a3142"}}>
+              <div style={{width:48,height:48,borderRadius:12,background:confirmDelDept.color+"33",border:`2px solid ${confirmDelDept.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{confirmDelDept.icon}</div>
+              <div><div style={{fontWeight:700,fontSize:16}}>{confirmDelDept.label}</div><div style={{fontSize:11,color:"#64748b",marginTop:1}}>{confirmDelDept.roles.length} roles · {emps.filter(e=>e.dept===confirmDelDept.id).length} empleados</div></div>
+            </div>
+            <div style={{background:"#ef444411",border:"1px solid #ef444433",borderRadius:9,padding:"10px 12px",marginBottom:14,fontSize:12,color:"#ef4444"}}>⚠️ Se eliminará el departamento y todos sus roles. No se puede deshacer.</div>
+            <button onClick={deleteDeptConfirmed} style={{width:"100%",padding:"13px",background:"#ef4444",border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:8}}>🗑️ Sí, eliminar</button>
+            <button onClick={()=>setConfirmDelDept(null)} style={{width:"100%",padding:"11px",background:"none",border:"1px solid #2a3142",borderRadius:10,color:"#64748b",fontSize:12,cursor:"pointer"}}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
